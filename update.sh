@@ -1,29 +1,20 @@
 #!/bin/bash
 set -e
 
-declare -A gpgKeys=(
-	# https://wiki.php.net/todo/php71
-	# davey & krakjoe
-	# https://secure.php.net/downloads.php#gpg-7.1
-	[7.1]='A917B1ECDA84AEC2B568FED6F50ABC807BD5DCD0 528995BFEDFBA7191D46839EF9BA0ADA31CBD89E'
-
-	# https://wiki.php.net/todo/php70
-	# ab & tyrael
-	# https://secure.php.net/downloads.php#gpg-7.0
-	[7.0]='1A4E8B7277C42E53DBA9C7B9BCAA30EA9C0D5763 6E4F6AB321FDC07F2C332E3AC2BF0BC433CFC8B3'
-
-	# https://wiki.php.net/todo/php56
-	# jpauli & tyrael
-	# https://secure.php.net/downloads.php#gpg-5.6
-	[5.6]='0BD78B5F97500D450838F95DFE857D9A90D90EC1 6E4F6AB321FDC07F2C332E3AC2BF0BC433CFC8B3'
-)
-# see https://secure.php.net/downloads.php
-
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
 versions=( "$@" )
 if [ ${#versions[@]} -eq 0 ]; then
 	versions=( */ )
+	# exclude vendor directory
+	tmp=()
+	for value in "${versions[@]}"; do
+		if [ "$value" != "vendor/" ]; then
+			tmp+=($value)
+		fi
+	done
+	versions=("${tmp[@]}")
+	unset tmp
 fi
 versions=( "${versions[@]%/}" )
 
@@ -42,63 +33,15 @@ travisEnv=
 for version in "${versions[@]}"; do
 	rcVersion="${version%-rc}"
 
-	# scrape the relevant API based on whether we're looking for pre-releases
-	apiUrl="https://secure.php.net/releases/index.php?json&max=100&version=${rcVersion%%.*}"
-	apiJqExpr='
-		(keys[] | select(startswith("'"$rcVersion"'."))) as $version
-		| [ $version, (
-			.[$version].source[]
-			| select(.filename | endswith(".xz"))
-			|
-				"https://secure.php.net/get/" + .filename + "/from/this/mirror",
-				"https://secure.php.net/get/" + .filename + ".asc/from/this/mirror",
-				.sha256 // "",
-				.md5 // ""
-		) ]
-	'
-	if [ "$rcVersion" != "$version" ]; then
-		apiUrl='https://qa.php.net/api.php?type=qa-releases&format=json'
-		apiJqExpr='
-			.releases[]
-			| select(.version | startswith("7.1."))
-			| [
-				.version,
-				.files.xz.path // "",
-				"",
-				.files.xz.sha256 // "",
-				.files.xz.md5 // ""
-			]
-		'
-	fi
-	IFS=$'\n'
-	possibles=( $(
-		curl -fsSL "$apiUrl" \
-			| jq --raw-output "$apiJqExpr | @sh" \
-			| sort -rV
-	) )
-	unset IFS
+	fullVersion=`vendor/bin/php-versions version "$rcVersion"`
+	url=`vendor/bin/php-versions download-url "$rcVersion" --format xz`
+	ascUrl=`vendor/bin/php-versions download-url "$rcVersion" --format xz --asc`
+	sha256=`vendor/bin/php-versions hash "$rcVersion" --format xz --type sha256`
+	md5=`vendor/bin/php-versions hash "$rcVersion" --format xz --type md5`
 
-	if [ "${#possibles[@]}" -eq 0 ]; then
-		echo >&2
-		echo >&2 "error: unable to determine available releases of $version"
-		echo >&2
-		exit 1
-	fi
-
-	# format of "possibles" array entries is "VERSION URL.TAR.XZ URL.TAR.XZ.ASC SHA256 MD5" (each value shell quoted)
-	#   see the "apiJqExpr" values above for more details
-	eval "possi=( ${possibles[0]} )"
-	fullVersion="${possi[0]}"
-	url="${possi[1]}"
-	ascUrl="${possi[2]}"
-	sha256="${possi[3]}"
-	md5="${possi[4]}"
-
-	gpgKey="${gpgKeys[$rcVersion]}"
+	gpgKey=`vendor/bin/php-versions gpg "$rcVersion"`
 	if [ -z "$gpgKey" ]; then
-		echo >&2 "ERROR: missing GPG key fingerprint for $version"
-		echo >&2 "  try looking on https://secure.php.net/downloads.php#gpg-$version"
-		exit 1
+		gpgKey='""'
 	fi
 
 	# if we don't have a .asc URL, let's see if we can figure one out :)

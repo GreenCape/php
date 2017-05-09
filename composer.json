@@ -1,0 +1,16 @@
+{
+    "name": "greencape/php",
+    "description": "A fork of the official PHP repo to provide older versions, too",
+    "type": "library",
+    "license": "Docker",
+    "authors": [
+        {
+            "name": "Niels Braczek",
+            "email": "nbraczek@bsds.de"
+        }
+    ],
+    "require": {},
+    "require-dev": {
+        "greencape/php-versions": "dev-master"
+    }
+}
