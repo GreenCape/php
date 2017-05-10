@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y \
 		libedit2 \
 		libsqlite3-0 \
 		libxml2 \
+		lbzip2 \
 		xz-utils \
 	--no-install-recommends && rm -r /var/lib/apt/lists/*
 

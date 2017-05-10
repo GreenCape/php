@@ -62,7 +62,7 @@ before_script:
   - image="${image//'/'/-}"
 
 script:
-  - travis_retry docker build -t "$image" "${VARIANT:-.}"
+  - docker build -t "$image" "${VARIANT:-.}"
   - ~/official-images/test/run.sh "$image"
 
 after_script:

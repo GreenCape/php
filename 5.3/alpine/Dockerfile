@@ -20,7 +20,8 @@ RUN apk add --no-cache --virtual .persistent-deps \
 		ca-certificates \
 		curl \
 		tar \
-		xz
+		xz \
+		bzip2
 
 # ensure www-data user exists
 RUN set -x \
