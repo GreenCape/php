@@ -34,8 +34,9 @@ for version in "${versions[@]}"; do
 	rcVersion="${version%-rc}"
 
 	fullVersion=`vendor/bin/php-versions version "$rcVersion"`
-	url=`vendor/bin/php-versions download-url "$rcVersion" --format xz`
-	ascUrl=`vendor/bin/php-versions download-url "$rcVersion" --format xz --asc`
+	basename=`vendor/bin/php-versions download-url "$rcVersion" --format xz`
+	url=`vendor/bin/php-versions download-url "$rcVersion" --format xz --url`
+	ascUrl=`vendor/bin/php-versions download-url "$rcVersion" --format xz --asc --url`
 	sha256=`vendor/bin/php-versions hash "$rcVersion" --format xz --type sha256`
 	md5=`vendor/bin/php-versions hash "$rcVersion" --format xz --type md5`
 
@@ -48,6 +49,9 @@ for version in "${versions[@]}"; do
 	if [ -z "$ascUrl" ] && wget -q --spider "$url.asc"; then
 		ascUrl="$url.asc"
 	fi
+
+	# Temporarily disable GPG check due to problems with keyserver response time
+	ascUrl=
 
 	dockerfiles=()
 
@@ -103,6 +107,7 @@ for version in "${versions[@]}"; do
 		sed -ri \
 			-e 's!%%PHP_VERSION%%!'"$fullVersion"'!' \
 			-e 's!%%GPG_KEYS%%!'"$gpgKey"'!' \
+			-e 's!%%PHP_FILE%%!'"$basename"'!' \
 			-e 's!%%PHP_URL%%!'"$url"'!' \
 			-e 's!%%PHP_ASC_URL%%!'"$ascUrl"'!' \
 			-e 's!%%PHP_SHA256%%!'"$sha256"'!' \
