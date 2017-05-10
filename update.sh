@@ -99,6 +99,9 @@ for version in "${versions[@]}"; do
 			docker-php-ext-* \
 			docker-php-source \
 			"$version/$target/"
+		if [ "$target" == "apache" ]; then
+			cp -v apache2-foreground "$version/$target/"
+		fi
 		dockerfiles+=( "$version/$target/Dockerfile" )
 	done
 
