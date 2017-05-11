@@ -52,7 +52,7 @@ ENV GPG_KEYS ""
 
 ENV PHP_VERSION 5.2.17
 ENV PHP_FILE="php-5.2.17.tar.bz2"
-ENV PHP_URL="https://secure.php.net/get/php-5.2.17.tar.bz2/from/this/mirror" PHP_ASC_URL=""
+ENV PHP_URL="http://museum.php.net/php5/php-5.2.17.tar.bz2" PHP_ASC_URL=""
 ENV PHP_SHA256="" PHP_MD5="b27947f3045220faf16e4d9158cbfe13"
 
 RUN set -xe; \

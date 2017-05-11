@@ -6,6 +6,11 @@
 
 FROM debian:jessie
 
+ENV PHP_VERSION 5.3.29
+ENV PHP_FILE="php-5.3.29.tar.xz"
+ENV PHP_URL="https://secure.php.net/get/php-5.3.29.tar.xz/from/this/mirror" PHP_ASC_URL=""
+ENV PHP_SHA256="" PHP_MD5="dcff9c881fe436708c141cfc56358075"
+
 # persistent / runtime deps
 ENV PHPIZE_DEPS \
 		autoconf \
@@ -16,7 +21,7 @@ ENV PHPIZE_DEPS \
 		make \
 		pkg-config \
 		re2c
-RUN apt-get update && apt-get install -y \
+RUN phpizeDeps=" \
 		$PHPIZE_DEPS \
 		ca-certificates \
 		curl \
@@ -25,7 +30,15 @@ RUN apt-get update && apt-get install -y \
 		libxml2 \
 		lbzip2 \
 		xz-utils \
-	--no-install-recommends && rm -r /var/lib/apt/lists/*
+		patch \
+	" \
+	&& version () { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; } \
+	&& if [ $(version "${PHP_VERSION}") -ge $(version "5.3") ]; then { \
+		phpizeDeps="$phpizeDeps"; \
+	} else { \
+		phpizeDeps="$phpizeDeps"; \
+	} fi \
+	&& apt-get update && apt-get install -y $phpizeDeps --no-install-recommends && rm -r /var/lib/apt/lists/*
 
 ENV PHP_INI_DIR /usr/local/etc/php
 RUN mkdir -p $PHP_INI_DIR/conf.d
@@ -101,11 +114,6 @@ ENV PHP_LDFLAGS="-Wl,-O1 -Wl,--hash-style=both -pie"
 
 ENV GPG_KEYS 0B96609E270F565C13292B24C13C70B87267B52D 0A95E9A026542D53835E3F3A7DEC4E69FC9C83D7
 
-ENV PHP_VERSION 5.3.29
-ENV PHP_FILE="php-5.3.29.tar.xz"
-ENV PHP_URL="https://secure.php.net/get/php-5.3.29.tar.xz/from/this/mirror" PHP_ASC_URL=""
-ENV PHP_SHA256="" PHP_MD5="dcff9c881fe436708c141cfc56358075"
-
 RUN set -xe; \
 	\
 	fetchDeps=' \
@@ -115,7 +123,7 @@ RUN set -xe; \
 	apt-get install -y --no-install-recommends $fetchDeps; \
 	rm -rf /var/lib/apt/lists/*; \
 	\
-	mkdir -p /usr/src; \
+	mkdir -p /usr/src/patches; \
 	cd /usr/src; \
 	\
 	wget -O "$PHP_FILE" "$PHP_URL"; \
@@ -140,42 +148,85 @@ RUN set -xe; \
 	apt-get purge -y --auto-remove $fetchDeps
 
 COPY docker-php-source /usr/local/bin/
+COPY *.patch /usr/src/patches/
 
 RUN set -xe \
-	&& buildDeps=" \
-		$PHP_EXTRA_BUILD_DEPS \
-		libcurl4-openssl-dev \
-		libedit-dev \
-		libsqlite3-dev \
-		libssl-dev \
-		libxml2-dev \
-	" \
-	&& apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/* \
-	\
-	&& export CFLAGS="$PHP_CFLAGS" \
-		CPPFLAGS="$PHP_CPPFLAGS" \
-		LDFLAGS="$PHP_LDFLAGS" \
 	&& docker-php-source extract \
 	&& cd /usr/src/php \
-	&& ./configure \
-		--with-config-file-path="$PHP_INI_DIR" \
-		--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+	&& version () { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; } \
+	&& if [ $(version "${PHP_VERSION}") -ge $(version "5.4") ]; then { \
+		buildDeps=" \
+			$PHP_EXTRA_BUILD_DEPS \
+			libcurl4-openssl-dev \
+			libedit-dev \
+			libsqlite3-dev \
+			libssl-dev \
+			libxml2-dev \
+		" \
+		&& apt-get update && apt-get install -y $buildDeps --no-install-recommends \
+		&& rm -rf /var/lib/apt/lists/* \
 		\
-		--disable-cgi \
+		&& export CFLAGS="$PHP_CFLAGS" \
+			CPPFLAGS="$PHP_CPPFLAGS" \
+			LDFLAGS="$PHP_LDFLAGS" \
+		&& ./configure \
+			--with-config-file-path="$PHP_INI_DIR" \
+			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+			\
+			--disable-cgi \
+			\
+			# --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
+			--enable-ftp \
+			# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
+			--enable-mbstring \
+			# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
+			--enable-mysqlnd \
+			\
+			--with-curl \
+			--with-libedit \
+			--with-openssl \
+			--with-zlib \
+			\
+			$PHP_EXTRA_CONFIGURE_ARGS \
+			; \
+	} else { \
+		buildDeps=" \
+			$PHP_EXTRA_BUILD_DEPS \
+			autoconf2.13 \
+			libcurl4-openssl-dev \
+			libedit-dev \
+			libxml2-dev \
+		" \
+		&& apt-get update && apt-get install -y $buildDeps --no-install-recommends \
+		&& rm -rf /var/lib/apt/lists/* \
 		\
-# --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
-		--enable-ftp \
-# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
-		--enable-mbstring \
-# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
-		--enable-mysqlnd \
+		&& curl -SLO http://launchpadlibrarian.net/140087283/libbison-dev_2.7.1.dfsg-1_amd64.deb \
+		&& curl -SLO http://launchpadlibrarian.net/140087282/bison_2.7.1.dfsg-1_amd64.deb \
+		&& dpkg -i libbison-dev_2.7.1.dfsg-1_amd64.deb \
+		&& dpkg -i bison_2.7.1.dfsg-1_amd64.deb \
+		&& rm *.deb \
 		\
-		--with-curl \
-		--with-libedit \
-		--with-openssl \
-		--with-zlib \
-		\
-		$PHP_EXTRA_CONFIGURE_ARGS \
+		&& export CFLAGS="$PHP_CFLAGS" \
+			CPPFLAGS="$PHP_CPPFLAGS" \
+			LDFLAGS="$PHP_LDFLAGS" \
+		&& ./buildconf --force \
+		&& ./configure \
+			--with-config-file-path="$PHP_INI_DIR" \
+			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+			\
+			--disable-cgi \
+			\
+			# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
+			--enable-mbstring \
+			# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
+			--enable-mysqlnd \
+			\
+			--with-curl \
+			--with-libedit \
+			\
+			$PHP_EXTRA_CONFIGURE_ARGS \
+			; \
+	} fi \
 	&& make -j "$(nproc)" \
 	&& make install \
 	&& { find /usr/local/bin /usr/local/sbin -type f -executable -exec strip --strip-all '{}' + || true; } \

@@ -29,6 +29,9 @@ generated_warning() {
 	EOH
 }
 
+# Make version number comparable
+vc() { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; }
+
 travisEnv=
 for version in "${versions[@]}"; do
 	rcVersion="${version%-rc}"
@@ -61,6 +64,9 @@ for version in "${versions[@]}"; do
 		docker-php-ext-* \
 		docker-php-source \
 		"$version/"
+	if [ $(vc $version) -lt $(vc 5.3) ]; then
+		cp -v libxml29_compat.patch "$version/"
+	fi
 	dockerfiles+=( "$version/Dockerfile" )
 
 	if [ -d "$version/alpine" ]; then
@@ -70,6 +76,9 @@ for version in "${versions[@]}"; do
 			docker-php-ext-* \
 			docker-php-source \
 			"$version/alpine/"
+		if [ $(vc $version) -lt $(vc 5.3) ]; then
+			cp -v libxml29_compat.patch "$version/alpine/"
+		fi
 		dockerfiles+=( "$version/alpine/Dockerfile" )
 	fi
 
@@ -99,6 +108,9 @@ for version in "${versions[@]}"; do
 			docker-php-ext-* \
 			docker-php-source \
 			"$version/$target/"
+		if [ $(vc $version) -lt $(vc 5.3) ]; then
+			cp -v libxml29_compat.patch "$version/$target/"
+		fi
 		if [ "$target" == "apache" ]; then
 			cp -v apache2-foreground "$version/$target/"
 		fi

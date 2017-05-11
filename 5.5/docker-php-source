@@ -20,6 +20,10 @@ case "$1" in
 		if [ ! -f "$dir/.docker-extracted" ]; then
 			tar -axf /usr/src/php-*.tar.* -C "$dir" --strip-components=1
 			touch "$dir/.docker-extracted"
+			cd "$dir"
+			for patch in /usr/src/patches/*; do
+			    patch -p0 --verbose -i "$patch";
+			done
 		fi
 		;;
 
