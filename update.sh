@@ -64,8 +64,9 @@ for version in "${versions[@]}"; do
 		docker-php-ext-* \
 		docker-php-source \
 		"$version/"
+	mkdir -p "$version/patches"
 	if [ $(vc $version) -lt $(vc 5.3) ]; then
-		cp -v libxml29_compat.patch "$version/"
+		cp -v libxml29_compat.patch "$version/patches/"
 	fi
 	dockerfiles+=( "$version/Dockerfile" )
 
@@ -76,8 +77,9 @@ for version in "${versions[@]}"; do
 			docker-php-ext-* \
 			docker-php-source \
 			"$version/alpine/"
+		mkdir -p "$version/alpine/patches"
 		if [ $(vc $version) -lt $(vc 5.3) ]; then
-			cp -v libxml29_compat.patch "$version/alpine/"
+			cp -v libxml29_compat.patch "$version/alpine/patches/"
 		fi
 		dockerfiles+=( "$version/alpine/Dockerfile" )
 	fi
@@ -108,8 +110,9 @@ for version in "${versions[@]}"; do
 			docker-php-ext-* \
 			docker-php-source \
 			"$version/$target/"
+		mkdir -p "$version/$target/patches"
 		if [ $(vc $version) -lt $(vc 5.3) ]; then
-			cp -v libxml29_compat.patch "$version/$target/"
+			cp -v libxml29_compat.patch "$version/$target/patches/"
 		fi
 		if [ "$target" == "apache" ]; then
 			cp -v apache2-foreground "$version/$target/"

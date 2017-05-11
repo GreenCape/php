@@ -12,6 +12,7 @@ ENV PHPIZE_DEPS \
 		g++ \
 		gcc \
 		libc-dev \
+		patch \
 		make \
 		pkg-config \
 		re2c
@@ -53,7 +54,7 @@ RUN set -xe; \
 	apt-get install -y --no-install-recommends $fetchDeps; \
 	rm -rf /var/lib/apt/lists/*; \
 	\
-	mkdir -p /usr/src/patches; \
+	mkdir -p /usr/src; \
 	cd /usr/src; \
 	\
 	wget -O "$PHP_FILE" "$PHP_URL"; \
@@ -78,7 +79,7 @@ RUN set -xe; \
 	apt-get purge -y --auto-remove $fetchDeps
 
 COPY docker-php-source /usr/local/bin/
-COPY *.patch /usr/src/patches/
+COPY patches/ /usr/src/patches/
 
 RUN set -xe \
 	&& docker-php-source extract \

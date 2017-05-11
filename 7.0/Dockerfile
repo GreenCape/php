@@ -18,10 +18,11 @@ ENV PHPIZE_DEPS \
 		g++ \
 		gcc \
 		libc-dev \
+		patch \
 		make \
 		pkg-config \
 		re2c
-RUN phpizeDeps=" \
+RUN apt-get update && apt-get install -y \
 		$PHPIZE_DEPS \
 		ca-certificates \
 		curl \
@@ -30,15 +31,7 @@ RUN phpizeDeps=" \
 		libxml2 \
 		lbzip2 \
 		xz-utils \
-		patch \
-	" \
-	&& version () { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; } \
-	&& if [ $(version "${PHP_VERSION}") -ge $(version "5.3") ]; then { \
-		phpizeDeps="$phpizeDeps"; \
-	} else { \
-		phpizeDeps="$phpizeDeps"; \
-	} fi \
-	&& apt-get update && apt-get install -y $phpizeDeps --no-install-recommends && rm -r /var/lib/apt/lists/*
+	--no-install-recommends && rm -r /var/lib/apt/lists/*
 
 ENV PHP_INI_DIR /usr/local/etc/php
 RUN mkdir -p $PHP_INI_DIR/conf.d
@@ -67,7 +60,7 @@ RUN set -xe; \
 	apt-get install -y --no-install-recommends $fetchDeps; \
 	rm -rf /var/lib/apt/lists/*; \
 	\
-	mkdir -p /usr/src/patches; \
+	mkdir -p /usr/src; \
 	cd /usr/src; \
 	\
 	wget -O "$PHP_FILE" "$PHP_URL"; \
@@ -92,7 +85,7 @@ RUN set -xe; \
 	apt-get purge -y --auto-remove $fetchDeps
 
 COPY docker-php-source /usr/local/bin/
-COPY *.patch /usr/src/patches/
+COPY patches/ /usr/src/patches/
 
 RUN set -xe \
 	&& docker-php-source extract \
