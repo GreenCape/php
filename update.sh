@@ -67,6 +67,8 @@ for version in "${versions[@]}"; do
 	mkdir -p "$version/patches"
 	if [ $(vc $version) -lt $(vc 5.3) ]; then
 		cp -v libxml29_compat.patch "$version/patches/"
+	else
+		touch "$version/patches/.gitkeep"
 	fi
 	dockerfiles+=( "$version/Dockerfile" )
 
@@ -80,6 +82,8 @@ for version in "${versions[@]}"; do
 		mkdir -p "$version/alpine/patches"
 		if [ $(vc $version) -lt $(vc 5.3) ]; then
 			cp -v libxml29_compat.patch "$version/alpine/patches/"
+		else
+			touch "$version/alpine/patches/.gitkeep"
 		fi
 		dockerfiles+=( "$version/alpine/Dockerfile" )
 	fi
@@ -113,6 +117,8 @@ for version in "${versions[@]}"; do
 		mkdir -p "$version/$target/patches"
 		if [ $(vc $version) -lt $(vc 5.3) ]; then
 			cp -v libxml29_compat.patch "$version/$target/patches/"
+		else
+			touch "$version/$target/patches/.gitkeep"
 		fi
 		if [ "$target" == "apache" ]; then
 			cp -v apache2-foreground "$version/$target/"
