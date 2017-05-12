@@ -6,10 +6,10 @@
 
 FROM alpine:3.4
 
-ENV PHP_VERSION 7.0.18
-ENV PHP_FILE="php-7.0.18.tar.xz"
-ENV PHP_URL="https://secure.php.net/get/php-7.0.18.tar.xz/from/this/mirror" PHP_ASC_URL=""
-ENV PHP_SHA256="679cffcdf2495dee5ab89bda595e678a1096136678b3a1d08f1f57ba347c234d" PHP_MD5="a578c55644d233635d2caa96c3a6f9c7"
+ENV PHP_VERSION 7.0.19
+ENV PHP_FILE="php-7.0.19.tar.xz"
+ENV PHP_URL="https://secure.php.net/get/php-7.0.19.tar.xz/from/this/mirror" PHP_ASC_URL=""
+ENV PHP_SHA256="640e5e3377d15a6d19adce2b94a9d876eeddabdb862d154a5e347987f4225ef6" PHP_MD5="1a17e45c8be9ce28f036d884563e8ae7"
 
 # persistent / runtime deps
 ENV PHPIZE_DEPS \

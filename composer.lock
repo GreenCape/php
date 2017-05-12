@@ -14,12 +14,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/GreenCape/php-versions.git",
-                "reference": "a2ad88dab8cb3d8f7cc8748a9beddc1d5c72a883"
+                "reference": "f99ba6d3f53f9ede353f14da1ee3f3bd1b91a814"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/GreenCape/php-versions/zipball/a2ad88dab8cb3d8f7cc8748a9beddc1d5c72a883",
-                "reference": "a2ad88dab8cb3d8f7cc8748a9beddc1d5c72a883",
+                "url": "https://api.github.com/repos/GreenCape/php-versions/zipball/f99ba6d3f53f9ede353f14da1ee3f3bd1b91a814",
+                "reference": "f99ba6d3f53f9ede353f14da1ee3f3bd1b91a814",
                 "shasum": ""
             },
             "require": {
@@ -51,7 +51,7 @@
             ],
             "description": "A utility class to provide a list of all PHP versions and their matching xDebug version.",
             "homepage": "https://github.com/GreenCape/php-versions",
-            "time": "2017-05-10 12:10:08"
+            "time": "2017-05-11 15:20:55"
         },
         {
             "name": "psr/log",
