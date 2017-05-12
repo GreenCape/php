@@ -23,7 +23,7 @@ case "$1" in
 			cd "$dir"
 			for patchfile in `ls /usr/src/patches`; do
 				echo "Applying $patchfile"
-				patch -p0 --verbose -i "/usr/src/patches/$patchfile";
+				patch -p0 -i "/usr/src/patches/$patchfile";
 			done
 		fi
 		;;

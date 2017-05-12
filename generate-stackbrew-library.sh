@@ -12,6 +12,15 @@ cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
 versions=( */ )
 versions=( "${versions[@]%/}" )
+# exclude vendor directory
+tmp=()
+for value in "${versions[@]}"; do
+	if [ "$value" != "vendor" ]; then
+		tmp+=($value)
+	fi
+done
+versions=("${tmp[@]}")
+unset tmp
 
 # sort version numbers with highest first
 IFS=$'\n'; versions=( $(echo "${versions[*]}" | sort -rV) ); unset IFS
@@ -39,11 +48,10 @@ dirCommit() {
 }
 
 cat <<-EOH
-# this file is generated via https://github.com/docker-library/php/blob/$(fileCommit "$self")/$self
+# this file is generated via https://github.com/GreenCape/php/blob/$(fileCommit "$self")/$self
 
-Maintainers: Tianon Gravi <admwiggin@gmail.com> (@tianon),
-             Joseph Ferguson <yosifkit@gmail.com> (@yosifkit)
-GitRepo: https://github.com/docker-library/php.git
+Maintainers: Niels Braczek <nbraczek@bsds.de> (@nibra)
+GitRepo: https://github.com/GreenCape/php.git
 EOH
 
 # prints "$2$1$3$1...$N"
