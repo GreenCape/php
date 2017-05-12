@@ -2,13 +2,6 @@ language: bash
 services: docker
 
 env:
-  - VERSION=7.1 VARIANT=
-  - VERSION=7.1 VARIANT=alpine
-  - VERSION=7.1 VARIANT=apache
-  - VERSION=7.1 VARIANT=fpm
-  - VERSION=7.1 VARIANT=fpm/alpine
-  - VERSION=7.1 VARIANT=zts
-  - VERSION=7.1 VARIANT=zts/alpine
   - VERSION=7.0 VARIANT=
   - VERSION=7.0 VARIANT=alpine
   - VERSION=7.0 VARIANT=apache
@@ -16,41 +9,6 @@ env:
   - VERSION=7.0 VARIANT=fpm/alpine
   - VERSION=7.0 VARIANT=zts
   - VERSION=7.0 VARIANT=zts/alpine
-  - VERSION=5.6 VARIANT=
-  - VERSION=5.6 VARIANT=alpine
-  - VERSION=5.6 VARIANT=apache
-  - VERSION=5.6 VARIANT=fpm
-  - VERSION=5.6 VARIANT=fpm/alpine
-  - VERSION=5.6 VARIANT=zts
-  - VERSION=5.6 VARIANT=zts/alpine
-  - VERSION=5.5 VARIANT=
-  - VERSION=5.5 VARIANT=alpine
-  - VERSION=5.5 VARIANT=apache
-  - VERSION=5.5 VARIANT=fpm
-  - VERSION=5.5 VARIANT=fpm/alpine
-  - VERSION=5.5 VARIANT=zts
-  - VERSION=5.5 VARIANT=zts/alpine
-  - VERSION=5.4 VARIANT=
-  - VERSION=5.4 VARIANT=alpine
-  - VERSION=5.4 VARIANT=apache
-  - VERSION=5.4 VARIANT=fpm
-  - VERSION=5.4 VARIANT=fpm/alpine
-  - VERSION=5.4 VARIANT=zts
-  - VERSION=5.4 VARIANT=zts/alpine
-  - VERSION=5.3 VARIANT=
-  - VERSION=5.3 VARIANT=alpine
-  - VERSION=5.3 VARIANT=apache
-  - VERSION=5.3 VARIANT=fpm
-  - VERSION=5.3 VARIANT=fpm/alpine
-  - VERSION=5.3 VARIANT=zts
-  - VERSION=5.3 VARIANT=zts/alpine
-  - VERSION=5.2 VARIANT=
-  - VERSION=5.2 VARIANT=alpine
-  - VERSION=5.2 VARIANT=apache
-  - VERSION=5.2 VARIANT=fpm
-  - VERSION=5.2 VARIANT=fpm/alpine
-  - VERSION=5.2 VARIANT=zts
-  - VERSION=5.2 VARIANT=zts/alpine
 
 install:
   - git clone https://github.com/docker-library/official-images.git ~/official-images
@@ -63,7 +21,7 @@ before_script:
 
 script:
   - docker build -t "$image" "${VARIANT:-.}"
-  - ~/official-images/test/run.sh "$image"
+  - ~/official-images/test/run.sh --config ../config.sh "$image"
 
 after_script:
   - docker images
