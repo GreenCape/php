@@ -6,14 +6,19 @@
 
 FROM alpine:3.4
 
+ENV PHP_VERSION 7.0.19
+ENV PHP_FILE="php-7.0.19.tar.xz"
+ENV PHP_URL="https://secure.php.net/get/php-7.0.19.tar.xz/from/this/mirror" PHP_ASC_URL=""
+ENV PHP_SHA256="640e5e3377d15a6d19adce2b94a9d876eeddabdb862d154a5e347987f4225ef6" PHP_MD5="1a17e45c8be9ce28f036d884563e8ae7"
+
 # persistent / runtime deps
 ENV PHPIZE_DEPS \
 		autoconf \
-		dpkg-dev dpkg \
 		file \
 		g++ \
 		gcc \
 		libc-dev \
+		patch \
 		make \
 		pkgconf \
 		re2c
@@ -21,7 +26,8 @@ RUN apk add --no-cache --virtual .persistent-deps \
 		ca-certificates \
 		curl \
 		tar \
-		xz
+		xz \
+		bzip2
 
 # ensure www-data user exists
 RUN set -x \
@@ -51,10 +57,6 @@ ENV PHP_LDFLAGS="-Wl,-O1 -Wl,--hash-style=both -pie"
 
 ENV GPG_KEYS 1A4E8B7277C42E53DBA9C7B9BCAA30EA9C0D5763 6E4F6AB321FDC07F2C332E3AC2BF0BC433CFC8B3
 
-ENV PHP_VERSION 7.0.18
-ENV PHP_URL="https://secure.php.net/get/php-7.0.18.tar.xz/from/this/mirror" PHP_ASC_URL="https://secure.php.net/get/php-7.0.18.tar.xz.asc/from/this/mirror"
-ENV PHP_SHA256="679cffcdf2495dee5ab89bda595e678a1096136678b3a1d08f1f57ba347c234d" PHP_MD5="a578c55644d233635d2caa96c3a6f9c7"
-
 RUN set -xe; \
 	\
 	apk add --no-cache --virtual .fetch-deps \
@@ -65,71 +67,99 @@ RUN set -xe; \
 	mkdir -p /usr/src; \
 	cd /usr/src; \
 	\
-	wget -O php.tar.xz "$PHP_URL"; \
+	wget -O "$PHP_FILE" "$PHP_URL"; \
 	\
 	if [ -n "$PHP_SHA256" ]; then \
-		echo "$PHP_SHA256 *php.tar.xz" | sha256sum -c -; \
+		echo "$PHP_SHA256 *$PHP_FILE" | sha256sum -c -; \
 	fi; \
 	if [ -n "$PHP_MD5" ]; then \
-		echo "$PHP_MD5 *php.tar.xz" | md5sum -c -; \
+		echo "$PHP_MD5 *$PHP_FILE" | md5sum -c -; \
 	fi; \
 	\
 	if [ -n "$PHP_ASC_URL" ]; then \
-		wget -O php.tar.xz.asc "$PHP_ASC_URL"; \
+		wget -O php.tar.asc "$PHP_ASC_URL"; \
 		export GNUPGHOME="$(mktemp -d)"; \
 		for key in $GPG_KEYS; do \
 			gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
 		done; \
-		gpg --batch --verify php.tar.xz.asc php.tar.xz; \
+		gpg --batch --verify php.tar.asc "$PHP_FILE"; \
 		rm -r "$GNUPGHOME"; \
 	fi; \
 	\
 	apk del .fetch-deps
 
 COPY docker-php-source /usr/local/bin/
+COPY patches/ /usr/src/patches/
 
 RUN set -xe \
-	&& apk add --no-cache --virtual .build-deps \
-		$PHPIZE_DEPS \
-		coreutils \
-		curl-dev \
-		libedit-dev \
-		libxml2-dev \
-		openssl-dev \
-		pcre-dev \
-		sqlite-dev \
-	\
-	&& export CFLAGS="$PHP_CFLAGS" \
-		CPPFLAGS="$PHP_CPPFLAGS" \
-		LDFLAGS="$PHP_LDFLAGS" \
 	&& docker-php-source extract \
 	&& cd /usr/src/php \
-	&& gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-	&& ./configure \
-		--build="$gnuArch" \
-		--with-config-file-path="$PHP_INI_DIR" \
-		--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+	&& version () { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; } \
+	&& if [ $(version "${PHP_VERSION}") -ge $(version "5.4") ]; then { \
+		apk add --no-cache --virtual .build-deps \
+			$PHPIZE_DEPS \
+			curl-dev \
+			libedit-dev \
+			libxml2-dev \
+			openssl-dev \
+			sqlite-dev \
 		\
-		--disable-cgi \
+		&& export CFLAGS="$PHP_CFLAGS" \
+			CPPFLAGS="$PHP_CPPFLAGS" \
+			LDFLAGS="$PHP_LDFLAGS" \
+		&& ./configure \
+			--with-config-file-path="$PHP_INI_DIR" \
+			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+			\
+			--disable-cgi \
+			\
+			# --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
+			--enable-ftp \
+			# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
+			--enable-mbstring \
+			# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
+			--enable-mysqlnd \
+			\
+			--with-curl \
+			--with-libedit \
+			--with-openssl \
+			--with-zlib \
+			\
+			$PHP_EXTRA_CONFIGURE_ARGS \
+		; \
+	} else { \
+		apk add --no-cache --virtual .build-deps \
+			$PHPIZE_DEPS \
+			curl-dev \
+			libedit-dev \
+			libxml2-dev \
+			sqlite-dev \
 		\
-# --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
-		--enable-ftp \
-# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
-		--enable-mbstring \
-# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
-		--enable-mysqlnd \
-		\
-		--with-curl \
-		--with-libedit \
-		--with-openssl \
-		--with-zlib \
-		\
-# bundled pcre is too old for s390x (which isn't exactly a good sign)
-# /usr/src/php/ext/pcre/pcrelib/pcre_jit_compile.c:65:2: error: #error Unsupported architecture
-		--with-pcre-regex=/usr \
-		\
-		$PHP_EXTRA_CONFIGURE_ARGS \
-	&& make -j "$(nproc)" \
+		&& export CFLAGS="$PHP_CFLAGS" \
+			CPPFLAGS="$PHP_CPPFLAGS" \
+			LDFLAGS="$PHP_LDFLAGS" \
+		&& ./configure \
+			--with-config-file-path="$PHP_INI_DIR" \
+			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+			\
+			--disable-cgi \
+			\
+			# --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
+			--enable-ftp \
+			# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
+			--enable-mbstring \
+			# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
+			--enable-mysqlnd \
+			\
+			--with-curl \
+			--with-libedit \
+			--with-openssl \
+			--with-zlib \
+			\
+			$PHP_EXTRA_CONFIGURE_ARGS \
+		; \
+	} fi \
+	&& make -j "$(getconf _NPROCESSORS_ONLN)" \
 	&& make install \
 	&& { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
 	&& make clean \

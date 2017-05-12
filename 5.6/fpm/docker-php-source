@@ -18,8 +18,13 @@ case "$1" in
 	extract)
 		mkdir -p "$dir"
 		if [ ! -f "$dir/.docker-extracted" ]; then
-			tar -Jxf /usr/src/php.tar.xz -C "$dir" --strip-components=1
+			tar -axf /usr/src/php-*.tar.* -C "$dir" --strip-components=1
 			touch "$dir/.docker-extracted"
+			cd "$dir"
+			for patchfile in `ls /usr/src/patches`; do
+				echo "Applying $patchfile"
+				patch -p0 -i "/usr/src/patches/$patchfile";
+			done
 		fi
 		;;
 

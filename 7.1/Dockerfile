@@ -6,14 +6,19 @@
 
 FROM debian:jessie
 
+ENV PHP_VERSION 7.1.5
+ENV PHP_FILE="php-7.1.5.tar.xz"
+ENV PHP_URL="https://secure.php.net/get/php-7.1.5.tar.xz/from/this/mirror" PHP_ASC_URL=""
+ENV PHP_SHA256="d149a3c396c45611f5dc6bf14be190f464897145a76a8e5851cf18ff7094f6ac" PHP_MD5="fb0702321c7aceac68c82b8c7a10d196"
+
 # persistent / runtime deps
 ENV PHPIZE_DEPS \
 		autoconf \
-		dpkg-dev \
 		file \
 		g++ \
 		gcc \
 		libc-dev \
+		patch \
 		make \
 		pkg-config \
 		re2c
@@ -24,6 +29,7 @@ RUN apt-get update && apt-get install -y \
 		libedit2 \
 		libsqlite3-0 \
 		libxml2 \
+		lbzip2 \
 		xz-utils \
 	--no-install-recommends && rm -r /var/lib/apt/lists/*
 
@@ -45,10 +51,6 @@ ENV PHP_LDFLAGS="-Wl,-O1 -Wl,--hash-style=both -pie"
 
 ENV GPG_KEYS A917B1ECDA84AEC2B568FED6F50ABC807BD5DCD0 528995BFEDFBA7191D46839EF9BA0ADA31CBD89E
 
-ENV PHP_VERSION 7.1.4
-ENV PHP_URL="https://secure.php.net/get/php-7.1.4.tar.xz/from/this/mirror" PHP_ASC_URL="https://secure.php.net/get/php-7.1.4.tar.xz.asc/from/this/mirror"
-ENV PHP_SHA256="71514386adf3e963df087c2044a0b3747900b8b1fc8da3a99f0a0ae9180d300b" PHP_MD5="a74c13f8779349872b365e6732e8c98e"
-
 RUN set -xe; \
 	\
 	fetchDeps=' \
@@ -61,72 +63,107 @@ RUN set -xe; \
 	mkdir -p /usr/src; \
 	cd /usr/src; \
 	\
-	wget -O php.tar.xz "$PHP_URL"; \
+	wget -O "$PHP_FILE" "$PHP_URL"; \
 	\
 	if [ -n "$PHP_SHA256" ]; then \
-		echo "$PHP_SHA256 *php.tar.xz" | sha256sum -c -; \
+		echo "$PHP_SHA256 *$PHP_FILE" | sha256sum -c -; \
 	fi; \
 	if [ -n "$PHP_MD5" ]; then \
-		echo "$PHP_MD5 *php.tar.xz" | md5sum -c -; \
+		echo "$PHP_MD5 *$PHP_FILE" | md5sum -c -; \
 	fi; \
 	\
 	if [ -n "$PHP_ASC_URL" ]; then \
-		wget -O php.tar.xz.asc "$PHP_ASC_URL"; \
+		wget -O php.tar.asc "$PHP_ASC_URL"; \
 		export GNUPGHOME="$(mktemp -d)"; \
 		for key in $GPG_KEYS; do \
 			gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
 		done; \
-		gpg --batch --verify php.tar.xz.asc php.tar.xz; \
+		gpg --batch --verify php.tar.asc "$PHP_FILE"; \
 		rm -r "$GNUPGHOME"; \
 	fi; \
 	\
 	apt-get purge -y --auto-remove $fetchDeps
 
 COPY docker-php-source /usr/local/bin/
+COPY patches/ /usr/src/patches/
 
 RUN set -xe \
-	&& buildDeps=" \
-		$PHP_EXTRA_BUILD_DEPS \
-		libcurl4-openssl-dev \
-		libedit-dev \
-		libpcre3-dev \
-		libsqlite3-dev \
-		libssl-dev \
-		libxml2-dev \
-	" \
-	&& apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/* \
-	\
-	&& export CFLAGS="$PHP_CFLAGS" \
-		CPPFLAGS="$PHP_CPPFLAGS" \
-		LDFLAGS="$PHP_LDFLAGS" \
 	&& docker-php-source extract \
 	&& cd /usr/src/php \
-	&& gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-	&& ./configure \
-		--build="$gnuArch" \
-		--with-config-file-path="$PHP_INI_DIR" \
-		--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+	&& version () { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; } \
+	&& if [ $(version "${PHP_VERSION}") -ge $(version "5.4") ]; then { \
+		buildDeps=" \
+			$PHP_EXTRA_BUILD_DEPS \
+			libcurl4-openssl-dev \
+			libedit-dev \
+			libsqlite3-dev \
+			libssl-dev \
+			libxml2-dev \
+		" \
+		&& apt-get update && apt-get install -y $buildDeps --no-install-recommends \
+		&& rm -rf /var/lib/apt/lists/* \
 		\
-		--disable-cgi \
+		&& export CFLAGS="$PHP_CFLAGS" \
+			CPPFLAGS="$PHP_CPPFLAGS" \
+			LDFLAGS="$PHP_LDFLAGS" \
+		&& ./configure \
+			--with-config-file-path="$PHP_INI_DIR" \
+			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+			\
+			--disable-cgi \
+			\
+			# --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
+			--enable-ftp \
+			# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
+			--enable-mbstring \
+			# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
+			--enable-mysqlnd \
+			\
+			--with-curl \
+			--with-libedit \
+			--with-openssl \
+			--with-zlib \
+			\
+			$PHP_EXTRA_CONFIGURE_ARGS \
+			; \
+	} else { \
+		buildDeps=" \
+			$PHP_EXTRA_BUILD_DEPS \
+			autoconf2.13 \
+			libcurl4-openssl-dev \
+			libedit-dev \
+			libxml2-dev \
+		" \
+		&& apt-get update && apt-get install -y $buildDeps --no-install-recommends \
+		&& rm -rf /var/lib/apt/lists/* \
 		\
-# --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
-		--enable-ftp \
-# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
-		--enable-mbstring \
-# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
-		--enable-mysqlnd \
+		&& curl -SLO http://launchpadlibrarian.net/140087283/libbison-dev_2.7.1.dfsg-1_amd64.deb \
+		&& curl -SLO http://launchpadlibrarian.net/140087282/bison_2.7.1.dfsg-1_amd64.deb \
+		&& dpkg -i libbison-dev_2.7.1.dfsg-1_amd64.deb \
+		&& dpkg -i bison_2.7.1.dfsg-1_amd64.deb \
+		&& rm *.deb \
 		\
-		--with-curl \
-		--with-libedit \
-		--with-openssl \
-		--with-zlib \
-		\
-# bundled pcre is too old for s390x (which isn't exactly a good sign)
-# /usr/src/php/ext/pcre/pcrelib/pcre_jit_compile.c:65:2: error: #error Unsupported architecture
-		--with-pcre-regex=/usr \
-		--with-libdir="lib/$gnuArch" \
-		\
-		$PHP_EXTRA_CONFIGURE_ARGS \
+		&& export CFLAGS="$PHP_CFLAGS" \
+			CPPFLAGS="$PHP_CPPFLAGS" \
+			LDFLAGS="$PHP_LDFLAGS" \
+		&& ./buildconf --force \
+		&& ./configure \
+			--with-config-file-path="$PHP_INI_DIR" \
+			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
+			\
+			--disable-cgi \
+			\
+			# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
+			--enable-mbstring \
+			# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
+			--enable-mysqlnd \
+			\
+			--with-curl \
+			--with-libedit \
+			\
+			$PHP_EXTRA_CONFIGURE_ARGS \
+			; \
+	} fi \
 	&& make -j "$(nproc)" \
 	&& make install \
 	&& { find /usr/local/bin /usr/local/sbin -type f -executable -exec strip --strip-all '{}' + || true; } \
