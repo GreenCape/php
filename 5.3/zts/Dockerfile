@@ -14,6 +14,7 @@ ENV PHP_SHA256="" PHP_MD5="dcff9c881fe436708c141cfc56358075"
 # persistent / runtime deps
 ENV PHPIZE_DEPS \
 		autoconf \
+		dpkg-dev \
 		file \
 		g++ \
 		gcc \
@@ -97,6 +98,7 @@ RUN set -xe \
 			$PHP_EXTRA_BUILD_DEPS \
 			libcurl4-openssl-dev \
 			libedit-dev \
+			libpcre3-dev \
 			libsqlite3-dev \
 			libssl-dev \
 			libxml2-dev \
@@ -107,7 +109,9 @@ RUN set -xe \
 		&& export CFLAGS="$PHP_CFLAGS" \
 			CPPFLAGS="$PHP_CPPFLAGS" \
 			LDFLAGS="$PHP_LDFLAGS" \
+		&& gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
 		&& ./configure \
+			--build="$gnuArch" \
 			--with-config-file-path="$PHP_INI_DIR" \
 			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
 			\
@@ -125,6 +129,11 @@ RUN set -xe \
 			--with-openssl \
 			--with-zlib \
 			\
+			# bundled pcre is too old for s390x (which isn't exactly a good sign)
+			# /usr/src/php/ext/pcre/pcrelib/pcre_jit_compile.c:65:2: error: #error Unsupported architecture
+			--with-pcre-regex=/usr \
+			--with-libdir="lib/$gnuArch" \
+			\
 			$PHP_EXTRA_CONFIGURE_ARGS \
 			; \
 	} else { \
@@ -132,6 +141,7 @@ RUN set -xe \
 			$PHP_EXTRA_BUILD_DEPS \
 			autoconf2.13 \
 			libcurl4-openssl-dev \
+			libpcre3-dev \
 			libedit-dev \
 			libxml2-dev \
 		" \
@@ -148,7 +158,9 @@ RUN set -xe \
 			CPPFLAGS="$PHP_CPPFLAGS" \
 			LDFLAGS="$PHP_LDFLAGS" \
 		&& ./buildconf --force \
+		&& gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
 		&& ./configure \
+			--build="$gnuArch" \
 			--with-config-file-path="$PHP_INI_DIR" \
 			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
 			\
@@ -161,6 +173,11 @@ RUN set -xe \
 			\
 			--with-curl \
 			--with-libedit \
+			\
+			# bundled pcre is too old for s390x (which isn't exactly a good sign)
+			# /usr/src/php/ext/pcre/pcrelib/pcre_jit_compile.c:65:2: error: #error Unsupported architecture
+			--with-pcre-regex=/usr \
+			--with-libdir="lib/$gnuArch" \
 			\
 			$PHP_EXTRA_CONFIGURE_ARGS \
 			; \

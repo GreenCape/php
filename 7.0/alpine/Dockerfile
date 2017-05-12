@@ -14,6 +14,7 @@ ENV PHP_SHA256="640e5e3377d15a6d19adce2b94a9d876eeddabdb862d154a5e347987f4225ef6
 # persistent / runtime deps
 ENV PHPIZE_DEPS \
 		autoconf \
+		dpkg-dev dpkg \
 		file \
 		g++ \
 		gcc \
@@ -56,6 +57,10 @@ ENV PHP_LDFLAGS="-Wl,-O1 -Wl,--hash-style=both -pie"
 
 ENV GPG_KEYS 1A4E8B7277C42E53DBA9C7B9BCAA30EA9C0D5763 6E4F6AB321FDC07F2C332E3AC2BF0BC433CFC8B3
 
+ENV PHP_VERSION 7.0.19
+ENV PHP_URL="https://secure.php.net/get/php-7.0.19.tar.xz/from/this/mirror" PHP_ASC_URL=""
+ENV PHP_SHA256="640e5e3377d15a6d19adce2b94a9d876eeddabdb862d154a5e347987f4225ef6" PHP_MD5="1a17e45c8be9ce28f036d884563e8ae7"
+
 RUN set -xe; \
 	\
 	apk add --no-cache --virtual .fetch-deps \
@@ -97,16 +102,20 @@ RUN set -xe \
 	&& if [ $(version "${PHP_VERSION}") -ge $(version "5.4") ]; then { \
 		apk add --no-cache --virtual .build-deps \
 			$PHPIZE_DEPS \
+			coreutils \
 			curl-dev \
 			libedit-dev \
 			libxml2-dev \
 			openssl-dev \
+			pcre-dev \
 			sqlite-dev \
 		\
 		&& export CFLAGS="$PHP_CFLAGS" \
 			CPPFLAGS="$PHP_CPPFLAGS" \
 			LDFLAGS="$PHP_LDFLAGS" \
+		&& gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
 		&& ./configure \
+			--build="$gnuArch" \
 			--with-config-file-path="$PHP_INI_DIR" \
 			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
 			\
@@ -123,21 +132,29 @@ RUN set -xe \
 			--with-libedit \
 			--with-openssl \
 			--with-zlib \
+			\
+			# bundled pcre is too old for s390x (which isn't exactly a good sign)
+			# /usr/src/php/ext/pcre/pcrelib/pcre_jit_compile.c:65:2: error: #error Unsupported architecture
+			--with-pcre-regex=/usr \
 			\
 			$PHP_EXTRA_CONFIGURE_ARGS \
 		; \
 	} else { \
 		apk add --no-cache --virtual .build-deps \
 			$PHPIZE_DEPS \
+			coreutils \
 			curl-dev \
 			libedit-dev \
 			libxml2-dev \
+			pcre-dev \
 			sqlite-dev \
 		\
 		&& export CFLAGS="$PHP_CFLAGS" \
 			CPPFLAGS="$PHP_CPPFLAGS" \
 			LDFLAGS="$PHP_LDFLAGS" \
+		&& gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
 		&& ./configure \
+			--build="$gnuArch" \
 			--with-config-file-path="$PHP_INI_DIR" \
 			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
 			\
@@ -155,10 +172,14 @@ RUN set -xe \
 			--with-openssl \
 			--with-zlib \
 			\
+			# bundled pcre is too old for s390x (which isn't exactly a good sign)
+			# /usr/src/php/ext/pcre/pcrelib/pcre_jit_compile.c:65:2: error: #error Unsupported architecture
+			--with-pcre-regex=/usr \
+			\
 			$PHP_EXTRA_CONFIGURE_ARGS \
 		; \
 	} fi \
-	&& make -j "$(getconf _NPROCESSORS_ONLN)" \
+	&& make -j "$(nproc)" \
 	&& make install \
 	&& { find /usr/local/bin /usr/local/sbin -type f -perm +0111 -exec strip --strip-all '{}' + || true; } \
 	&& make clean \
