@@ -35,7 +35,7 @@ function build () {
 	cd "$workdir"
 }
 
-for version in "${versions[@]}"; do
+time for version in "${versions[@]}"; do
 	rcVersion="${version%-rc}"
 	build "$version"
 

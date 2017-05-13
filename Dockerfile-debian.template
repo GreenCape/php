@@ -82,106 +82,84 @@ RUN set -xe; \
 COPY docker-php-source /usr/local/bin/
 COPY patches/ /usr/src/patches/
 
-RUN set -xe \
-	&& docker-php-source extract \
-	&& cd /usr/src/php \
-	&& version () { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; } \
-	&& if [ $(version "${PHP_VERSION}") -ge $(version "5.4") ]; then { \
-		buildDeps=" \
-			$PHP_EXTRA_BUILD_DEPS \
-			libcurl4-openssl-dev \
-			libedit-dev \
-			libpcre3-dev \
-			libsqlite3-dev \
+RUN set -xe; \
+	docker-php-source extract; \
+	cd /usr/src/php; \
+	version () { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; }; \
+	\
+	if [ $(version "${PHP_VERSION}") -ge $(version "5.4") ]; then { \
+		versionDeps=" \
 			libssl-dev \
-			libxml2-dev \
-		" \
-		&& apt-get update && apt-get install -y $buildDeps --no-install-recommends \
-		&& rm -rf /var/lib/apt/lists/* \
-		\
-		&& export CFLAGS="$PHP_CFLAGS" \
-			CPPFLAGS="$PHP_CPPFLAGS" \
-			LDFLAGS="$PHP_LDFLAGS" \
-		&& gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-		&& ./configure \
+		"; \
+		versionArgs=" \
 			--build="$gnuArch" \
-			--with-config-file-path="$PHP_INI_DIR" \
-			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
-			\
-			--disable-cgi \
-			\
-			# --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically (see https://github.com/docker-library/php/issues/236)
-			--enable-ftp \
-			# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
-			--enable-mbstring \
-			# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
-			--enable-mysqlnd \
-			\
-			--with-curl \
-			--with-libedit \
 			--with-openssl \
 			--with-zlib \
-			\
-			# bundled pcre is too old for s390x (which isn't exactly a good sign)
-			# /usr/src/php/ext/pcre/pcrelib/pcre_jit_compile.c:65:2: error: #error Unsupported architecture
-			--with-pcre-regex=/usr \
 			--with-libdir="lib/$gnuArch" \
-			\
-			$PHP_EXTRA_CONFIGURE_ARGS \
-			; \
+		"; \
 	} else { \
-		buildDeps=" \
-			$PHP_EXTRA_BUILD_DEPS \
+		versionDeps=" \
 			autoconf2.13 \
-			libcurl4-openssl-dev \
-			libpcre3-dev \
-			libedit-dev \
-			libxml2-dev \
-		" \
-		&& apt-get update && apt-get install -y $buildDeps --no-install-recommends \
-		&& rm -rf /var/lib/apt/lists/* \
+		"; \
+		versionArgs=" \
+		"; \
 		\
-		&& curl -SLO http://launchpadlibrarian.net/140087283/libbison-dev_2.7.1.dfsg-1_amd64.deb \
-		&& curl -SLO http://launchpadlibrarian.net/140087282/bison_2.7.1.dfsg-1_amd64.deb \
-		&& dpkg -i libbison-dev_2.7.1.dfsg-1_amd64.deb \
-		&& dpkg -i bison_2.7.1.dfsg-1_amd64.deb \
-		&& rm *.deb \
+		# curl -SLO http://launchpadlibrarian.net/140087283/libbison-dev_2.7.1.dfsg-1_amd64.deb; \
+		# curl -SLO http://launchpadlibrarian.net/140087282/bison_2.7.1.dfsg-1_amd64.deb; \
+		# dpkg -i libbison-dev_2.7.1.dfsg-1_amd64.deb; \
+		# dpkg -i bison_2.7.1.dfsg-1_amd64.deb; \
+		# rm *.deb; \
+	} fi; \
+	\
+	buildDeps=" \
+		$PHP_EXTRA_BUILD_DEPS \
+		libcurl4-openssl-dev \
+		libpcre3-dev \
+		libedit-dev \
+		libsqlite3-dev \
+		libxml2-dev \
+		$versionDeps \
+	"; \
+	apt-get update && apt-get install -y $buildDeps --no-install-recommends && rm -rf /var/lib/apt/lists/*; \
+	\
+	export CFLAGS="$PHP_CFLAGS" \
+		CPPFLAGS="$PHP_CPPFLAGS" \
+		LDFLAGS="$PHP_LDFLAGS"; \
+	gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)"; \
+	# ./buildconf --force; \
+	./configure \
+		--with-config-file-path="$PHP_INI_DIR" \
+		--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
 		\
-		&& export CFLAGS="$PHP_CFLAGS" \
-			CPPFLAGS="$PHP_CPPFLAGS" \
-			LDFLAGS="$PHP_LDFLAGS" \
-		&& ./buildconf --force \
-		&& gnuArch="$(dpkg-architecture --query DEB_BUILD_GNU_TYPE)" \
-		&& ./configure \
-			--build="$gnuArch" \
-			--with-config-file-path="$PHP_INI_DIR" \
-			--with-config-file-scan-dir="$PHP_INI_DIR/conf.d" \
-			\
-			--disable-cgi \
-			\
-			# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly (see https://github.com/docker-library/php/issues/195)
-			--enable-mbstring \
-			# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are (since it's a plugin for several extensions, not an extension in itself)
-			--enable-mysqlnd \
-			\
-			--with-curl \
-			--with-libedit \
-			\
-			# bundled pcre is too old for s390x (which isn't exactly a good sign)
-			# /usr/src/php/ext/pcre/pcrelib/pcre_jit_compile.c:65:2: error: #error Unsupported architecture
-			--with-pcre-regex=/usr \
-			--with-libdir="lib/$gnuArch" \
-			\
-			$PHP_EXTRA_CONFIGURE_ARGS \
-			; \
-	} fi \
+		--disable-cgi \
+		\
+		# --enable-ftp is included here because ftp_ssl_connect() needs ftp to be compiled statically
+		# (see https://github.com/docker-library/php/issues/236)
+		--enable-ftp \
+		# --enable-mbstring is included here because otherwise there's no way to get pecl to use it properly
+		# (see https://github.com/docker-library/php/issues/195)
+		--enable-mbstring \
+		# --enable-mysqlnd is included here because it's harder to compile after the fact than extensions are
+		# (since it's a plugin for several extensions, not an extension in itself)
+		--enable-mysqlnd \
+		\
+		--with-curl \
+		--with-libedit \
+		\
+		# bundled pcre is too old for s390x (which isn't exactly a good sign)
+		# /usr/src/php/ext/pcre/pcrelib/pcre_jit_compile.c:65:2: error: #error Unsupported architecture
+		--with-pcre-regex=/usr \
+		\
+		$versionArgs \
+		$PHP_EXTRA_CONFIGURE_ARGS \
+		\
 	&& make -j "$(nproc)" \
 	&& make install \
 	&& { find /usr/local/bin /usr/local/sbin -type f -executable -exec strip --strip-all '{}' + || true; } \
-	&& make clean \
-	&& docker-php-source delete \
+	&& make clean; \
+	docker-php-source delete \
 	\
-	&& apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false $buildDeps
+	apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false $buildDeps
 
 COPY docker-php-ext-* docker-php-entrypoint /usr/local/bin/
 
