@@ -15,9 +15,8 @@ versions=( "${versions[@]%/}" )
 # exclude vendor directory
 tmp=()
 for value in "${versions[@]}"; do
-	if [ "$value" != "vendor" ]; then
-		tmp+=($value)
-	fi
+	if [ "$value" == "vendor/" ]; then continue; fi
+	tmp+=($value)
 done
 versions=("${tmp[@]}")
 unset tmp
@@ -67,7 +66,6 @@ for version in "${versions[@]}"; do
 	fullVersion="$(git show "$commit":"$version/Dockerfile" | awk '$1 == "ENV" && $2 == "PHP_VERSION" { print $3; exit }')"
 
 	versionAliases=(
-		$fullVersion
 		$version
 		${aliases[$version]:-}
 	)

@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+declare -A aliases=(
+	[5.6]='5'
+	[7.1]='7 latest'
+	[7.2-rc]='rc'
+)
+
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
 versions=( "$@" )
@@ -9,9 +15,8 @@ if [ ${#versions[@]} -eq 0 ]; then
 	# exclude vendor directory
 	tmp=()
 	for value in "${versions[@]}"; do
-		if [ "$value" != "vendor/" ]; then
-			tmp+=($value)
-		fi
+		if [ "$value" == "vendor/" ]; then continue; fi
+		tmp+=($value)
 	done
 	versions=("${tmp[@]}")
 	unset tmp
@@ -31,6 +36,51 @@ generated_warning() {
 
 # Make version number comparable
 vc() { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; }
+
+# prints "$2$1$3$1...$N"
+join() {
+	local sep="$1"; shift
+	local out; printf -v out "${sep//%/%%}%s" "$@"
+	echo "${out#$sep}"
+}
+
+# Parameters: version, targetDir, tags...
+copyFiles() {
+	_version=$1
+	_dir=$2
+
+	cp -v \
+		docker-php-entrypoint \
+		docker-php-ext-* \
+		docker-php-source \
+		"$_dir/"
+	if [ "$_dir" == "$_version/apache" ]; then
+		cp -v apache2-foreground "$_dir/"
+	fi
+
+	# Patches
+	mkdir -p "$_dir/patches"
+	if [ $(vc $_version) -lt $(vc 5.3) ]; then
+		cp -v libxml29_compat.patch "$_dir/patches/"
+	else
+		touch "$_dir/patches/.gitkeep"
+	fi
+
+	# Hooks
+	shift 2
+	slash='/'
+	DEFAULT_TAG=( "${_dir//$slash/-}" )
+	ALTERNATIVE_TAGS=$(join ',' "$@")
+
+	rm -rf "$_dir/hooks"
+	if [ -n $ALTERNATIVE_TAGS ]; then
+		mkdir -p "$_dir/hooks"
+		cp -v post_push "$_dir/hooks/"
+		sed -ri \
+			-e 's!%%ALTERNATIVE_TAGS%%!'"$ALTERNATIVE_TAGS"'!' \
+			"$_dir/hooks/post_push"
+	fi
+}
 
 travisEnv=
 for version in "${versions[@]}"; do
@@ -59,32 +109,28 @@ for version in "${versions[@]}"; do
 	dockerfiles=()
 
 	{ generated_warning; cat Dockerfile-debian.template; } > "$version/Dockerfile"
-	cp -v \
-		docker-php-entrypoint \
-		docker-php-ext-* \
-		docker-php-source \
-		"$version/"
-	mkdir -p "$version/patches"
-	if [ $(vc $version) -lt $(vc 5.3) ]; then
-		cp -v libxml29_compat.patch "$version/patches/"
-	else
-		touch "$version/patches/.gitkeep"
-	fi
+
+	versionAliases=(
+		$version
+		${aliases[$version]:-}
+	)
+
+	variant='cli'
+	variantAliases=( "${versionAliases[@]/%/-$variant}" )
+	variantAliases=( "${variantAliases[@]//latest-/}" )
+	variantAliases+=( "${versionAliases[@]}" )
+
+	copyFiles "$version" "$version" "${variantAliases[@]}"
 	dockerfiles+=( "$version/Dockerfile" )
 
 	if [ -d "$version/alpine" ]; then
 		{ generated_warning; cat Dockerfile-alpine.template; } > "$version/alpine/Dockerfile"
-		cp -v \
-			docker-php-entrypoint \
-			docker-php-ext-* \
-			docker-php-source \
-			"$version/alpine/"
-		mkdir -p "$version/alpine/patches"
-		if [ $(vc $version) -lt $(vc 5.3) ]; then
-			cp -v libxml29_compat.patch "$version/alpine/patches/"
-		else
-			touch "$version/alpine/patches/.gitkeep"
-		fi
+
+		slash='/'
+		variantAliases=( "${versionAliases[@]/%/-alpine}" )
+		variantAliases=( "${variantAliases[@]//latest-/}" )
+
+		copyFiles "$version" "$version/alpine" "${variantAliases[@]}"
 		dockerfiles+=( "$version/alpine/Dockerfile" )
 	fi
 
@@ -109,20 +155,12 @@ for version in "${versions[@]}"; do
 			ia { ac++ }
 			ia && ac == 1 { system("cat '$variant'-Dockerfile-block-" ab) }
 		' "$base" > "$version/$target/Dockerfile"
-		cp -v \
-			docker-php-entrypoint \
-			docker-php-ext-* \
-			docker-php-source \
-			"$version/$target/"
-		mkdir -p "$version/$target/patches"
-		if [ $(vc $version) -lt $(vc 5.3) ]; then
-			cp -v libxml29_compat.patch "$version/$target/patches/"
-		else
-			touch "$version/$target/patches/.gitkeep"
-		fi
-		if [ "$target" == "apache" ]; then
-			cp -v apache2-foreground "$version/$target/"
-		fi
+
+		slash='/'
+		variantAliases=( "${versionAliases[@]/%/-${target//$slash/-}}" )
+		variantAliases=( "${variantAliases[@]//latest-/}" )
+
+		copyFiles "$version" "$version/$target" "${variantAliases[@]}"
 		dockerfiles+=( "$version/$target/Dockerfile" )
 	done
 
