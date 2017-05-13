@@ -20,6 +20,7 @@ ENV PHPIZE_DEPS \
 		gcc \
 		libc-dev \
 		patch \
+		libpcre3-dev \
 		make \
 		pkg-config \
 		re2c
@@ -179,7 +180,6 @@ RUN set -xe; \
 	buildDeps=" \
 		$PHP_EXTRA_BUILD_DEPS \
 		libcurl4-openssl-dev \
-		libpcre3-dev \
 		libedit-dev \
 		libsqlite3-dev \
 		libxml2-dev \

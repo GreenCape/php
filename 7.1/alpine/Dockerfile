@@ -21,6 +21,7 @@ ENV PHPIZE_DEPS \
 		libc-dev \
 		patch \
 		make \
+		pcre-dev \
 		pkgconf \
 		re2c
 RUN apk add --no-cache --virtual .persistent-deps \
@@ -125,9 +126,8 @@ RUN set -xe; \
 		curl-dev \
 		libedit-dev \
 		libxml2-dev \
-		pcre-dev \
+		openssl-dev \
 		sqlite-dev \
-		$PHP_EXTRA_BUILD_DEPS \
 		$versionDeps \
 	"; \
 	apk add --no-cache --virtual .build-deps $buildDeps; \
