@@ -68,12 +68,10 @@ copyFiles() {
 
 	# Hooks
 	shift 2
-	slash='/'
-	DEFAULT_TAG=( "${_dir//$slash/-}" )
-	ALTERNATIVE_TAGS=$(join ',' "$@")
-
+echo "$@ ($#)"
 	rm -rf "$_dir/hooks"
-	if [ -n $ALTERNATIVE_TAGS ]; then
+	if [ $# -gt 1 ]; then
+		ALTERNATIVE_TAGS=$(join ',' "$@")
 		mkdir -p "$_dir/hooks"
 		cp -v post_push "$_dir/hooks/"
 		sed -ri \
