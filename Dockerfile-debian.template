@@ -53,7 +53,7 @@ RUN set -xe; \
 		wget \
 	'; \
 	apt-get update; \
-	apt-get install -y --no-install-recommends --autoremove --no-show-progress $fetchDeps; \
+	apt-get install -y --no-install-recommends $fetchDeps; \
 	rm -rf /var/lib/apt/lists/*; \
 	\
 	mkdir -p /usr/src; \
@@ -78,7 +78,7 @@ RUN set -xe; \
 		rm -r "$GNUPGHOME"; \
 	fi; \
 	\
-	apt-get purge -y --autoremove --no-show-progress $fetchDeps
+	apt-get purge -y --autoremove $fetchDeps
 
 COPY docker-php-source /usr/local/bin/
 COPY patches/ /usr/src/patches/
