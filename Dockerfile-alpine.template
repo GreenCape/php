@@ -1,4 +1,4 @@
-FROM alpine:3.4
+FROM alpine:3.13
 
 ENV PHP_VERSION %%PHP_VERSION%%
 ENV PHP_FILE="%%PHP_FILE%%"

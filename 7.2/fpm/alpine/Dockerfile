@@ -4,7 +4,7 @@
 # PLEASE DO NOT EDIT IT DIRECTLY.
 #
 
-FROM alpine:3.4
+FROM alpine:3.13
 
 ENV PHP_VERSION 7.2.34
 ENV PHP_FILE="php-7.2.34.tar.xz"
@@ -73,7 +73,7 @@ RUN set -xe; \
 	mkdir -p /usr/src; \
 	cd /usr/src; \
 	\
-	wget -O "$PHP_FILE" "$PHP_URL"; \
+	wget --no-verbose --output-document="$PHP_FILE" "$PHP_URL"; \
 	\
 	if [ -n "$PHP_SHA256" ]; then \
 		echo "$PHP_SHA256 *$PHP_FILE" | sha256sum -c -; \
@@ -83,7 +83,7 @@ RUN set -xe; \
 	fi; \
 	\
 	if [ -n "$PHP_ASC_URL" ]; then \
-		wget -O php.tar.asc "$PHP_ASC_URL"; \
+		wget --no-verbose --output-document=php.tar.asc "$PHP_ASC_URL"; \
 		export GNUPGHOME="$(mktemp -d)"; \
 		for key in $GPG_KEYS; do \
 			gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \

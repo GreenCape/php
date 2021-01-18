@@ -59,13 +59,13 @@ RUN set -xe; \
 		wget \
 	'; \
 	apt-get update; \
-	apt-get install -y --no-install-recommends $fetchDeps; \
+	apt-get install -y --no-install-recommends --autoremove --no-show-progress $fetchDeps; \
 	rm -rf /var/lib/apt/lists/*; \
 	\
 	mkdir -p /usr/src; \
 	cd /usr/src; \
 	\
-	wget -O "$PHP_FILE" "$PHP_URL"; \
+	wget --no-verbose --output-document="$PHP_FILE" "$PHP_URL"; \
 	\
 	if [ -n "$PHP_SHA256" ]; then \
 		echo "$PHP_SHA256 *$PHP_FILE" | sha256sum -c -; \
@@ -75,7 +75,7 @@ RUN set -xe; \
 	fi; \
 	\
 	if [ -n "$PHP_ASC_URL" ]; then \
-		wget -O php.tar.asc "$PHP_ASC_URL"; \
+		wget --no-verbose --output-document=php.tar.asc "$PHP_ASC_URL"; \
 		export GNUPGHOME="$(mktemp -d)"; \
 		for key in $GPG_KEYS; do \
 			gpg --keyserver ha.pool.sks-keyservers.net --recv-keys "$key"; \
@@ -84,7 +84,7 @@ RUN set -xe; \
 		rm -r "$GNUPGHOME"; \
 	fi; \
 	\
-	apt-get purge -y --auto-remove $fetchDeps
+	apt-get purge -y --autoremove --no-show-progress $fetchDeps
 
 COPY docker-php-source /usr/local/bin/
 COPY patches/ /usr/src/patches/
