@@ -6,10 +6,10 @@
 
 FROM alpine:3.4
 
-ENV PHP_VERSION 7.1.5
-ENV PHP_FILE="php-7.1.5.tar.xz"
-ENV PHP_URL="https://secure.php.net/get/php-7.1.5.tar.xz/from/this/mirror" PHP_ASC_URL=""
-ENV PHP_SHA256="d149a3c396c45611f5dc6bf14be190f464897145a76a8e5851cf18ff7094f6ac" PHP_MD5="fb0702321c7aceac68c82b8c7a10d196"
+ENV PHP_VERSION 7.1.33
+ENV PHP_FILE="php-7.1.33.tar.xz"
+ENV PHP_URL="https://secure.php.net/get/php-7.1.33.tar.xz/from/this/mirror" PHP_ASC_URL=""
+ENV PHP_SHA256="bd7c0a9bd5433289ee01fd440af3715309faf583f75832b64fe169c100d52968" PHP_MD5=""
 
 # persistent / runtime deps
 ENV PHPIZE_DEPS \
@@ -58,9 +58,9 @@ ENV PHP_LDFLAGS="-Wl,-O1 -Wl,--hash-style=both -pie"
 
 ENV GPG_KEYS A917B1ECDA84AEC2B568FED6F50ABC807BD5DCD0 528995BFEDFBA7191D46839EF9BA0ADA31CBD89E
 
-ENV PHP_VERSION 7.1.5
-ENV PHP_URL="https://secure.php.net/get/php-7.1.5.tar.xz/from/this/mirror" PHP_ASC_URL=""
-ENV PHP_SHA256="d149a3c396c45611f5dc6bf14be190f464897145a76a8e5851cf18ff7094f6ac" PHP_MD5="fb0702321c7aceac68c82b8c7a10d196"
+ENV PHP_VERSION 7.1.33
+ENV PHP_URL="https://secure.php.net/get/php-7.1.33.tar.xz/from/this/mirror" PHP_ASC_URL=""
+ENV PHP_SHA256="bd7c0a9bd5433289ee01fd440af3715309faf583f75832b64fe169c100d52968" PHP_MD5=""
 
 RUN set -xe; \
 	\

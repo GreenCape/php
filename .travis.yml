@@ -2,6 +2,34 @@ language: bash
 services: docker
 
 env:
+  - VERSION=8.0 VARIANT=
+  - VERSION=8.0 VARIANT=alpine
+  - VERSION=8.0 VARIANT=apache
+  - VERSION=8.0 VARIANT=fpm
+  - VERSION=8.0 VARIANT=fpm/alpine
+  - VERSION=8.0 VARIANT=zts
+  - VERSION=8.0 VARIANT=zts/alpine
+  - VERSION=7.4 VARIANT=
+  - VERSION=7.4 VARIANT=alpine
+  - VERSION=7.4 VARIANT=apache
+  - VERSION=7.4 VARIANT=fpm
+  - VERSION=7.4 VARIANT=fpm/alpine
+  - VERSION=7.4 VARIANT=zts
+  - VERSION=7.4 VARIANT=zts/alpine
+  - VERSION=7.3 VARIANT=
+  - VERSION=7.3 VARIANT=alpine
+  - VERSION=7.3 VARIANT=apache
+  - VERSION=7.3 VARIANT=fpm
+  - VERSION=7.3 VARIANT=fpm/alpine
+  - VERSION=7.3 VARIANT=zts
+  - VERSION=7.3 VARIANT=zts/alpine
+  - VERSION=7.2 VARIANT=
+  - VERSION=7.2 VARIANT=alpine
+  - VERSION=7.2 VARIANT=apache
+  - VERSION=7.2 VARIANT=fpm
+  - VERSION=7.2 VARIANT=fpm/alpine
+  - VERSION=7.2 VARIANT=zts
+  - VERSION=7.2 VARIANT=zts/alpine
   - VERSION=7.1 VARIANT=
   - VERSION=7.1 VARIANT=alpine
   - VERSION=7.1 VARIANT=apache

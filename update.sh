@@ -2,29 +2,29 @@
 set -e
 
 declare -A aliases=(
-	[5.6]='5'
-	[7.1]='7 latest'
-	[7.2-rc]='rc'
+  [5.6]='5'
+  [7.4]='7'
+  [8.0]='8 latest'
 )
 
 cd "$(dirname "$(readlink -f "$BASH_SOURCE")")"
 
-versions=( "$@" )
+versions=("$@")
 if [ ${#versions[@]} -eq 0 ]; then
-	versions=( */ )
-	# exclude vendor directory
-	tmp=()
-	for value in "${versions[@]}"; do
-		if [ "$value" == "vendor/" ]; then continue; fi
-		tmp+=($value)
-	done
-	versions=("${tmp[@]}")
-	unset tmp
+  versions=(*/)
+  # exclude vendor directory
+  tmp=()
+  for value in "${versions[@]}"; do
+    if [ "$value" == "vendor/" ]; then continue; fi
+    tmp+=($value)
+  done
+  versions=("${tmp[@]}")
+  unset tmp
 fi
-versions=( "${versions[@]%/}" )
+versions=("${versions[@]%/}")
 
 generated_warning() {
-	cat <<-EOH
+  cat <<-EOH
 		#
 		# NOTE: THIS DOCKERFILE IS GENERATED VIA "update.sh"
 		#
@@ -39,159 +39,164 @@ vc() { echo "$@" | awk -F. '{ printf("%03d%03d%03d\n", $1,$2,$3); }'; }
 
 # prints "$2$1$3$1...$N"
 join() {
-	local sep="$1"; shift
-	local out; printf -v out "${sep//%/%%}%s" "$@"
-	echo "${out#$sep}"
+  local sep="$1"
+  shift
+  local out
+  printf -v out "${sep//%/%%}%s" "$@"
+  echo "${out#$sep}"
 }
 
 # Parameters: version, targetDir, tags...
 copyFiles() {
-	_version=$1
-	_dir=$2
+  _version=$1
+  _dir=$2
 
-	cp -v \
-		docker-php-entrypoint \
-		docker-php-ext-* \
-		docker-php-source \
-		"$_dir/"
-	if [ "$_dir" == "$_version/apache" ]; then
-		cp -v apache2-foreground "$_dir/"
-	fi
+  cp -v \
+    docker-php-entrypoint \
+    docker-php-ext-* \
+    docker-php-source \
+    "$_dir/"
+  if [ "$_dir" == "$_version/apache" ]; then
+    cp -v apache2-foreground "$_dir/"
+  fi
 
-	# Patches
-	mkdir -p "$_dir/patches"
-	if [ $(vc $_version) -lt $(vc 5.3) ]; then
-		cp -v libxml29_compat.patch "$_dir/patches/"
-	else
-		touch "$_dir/patches/.gitkeep"
-	fi
+  # Patches
+  mkdir -p "$_dir/patches"
+  if [ $(vc $_version) -lt $(vc 5.3) ]; then
+    cp -v libxml29_compat.patch "$_dir/patches/"
+  else
+    touch "$_dir/patches/.gitkeep"
+  fi
 
-	# Hooks
-	shift 2
-echo "$@ ($#)"
-	rm -rf "$_dir/hooks"
-	if [ $# -gt 1 ]; then
-		ALTERNATIVE_TAGS=$(join ',' "$@")
-		mkdir -p "$_dir/hooks"
-		cp -v post_push "$_dir/hooks/"
-		sed -ri \
-			-e 's!%%ALTERNATIVE_TAGS%%!'"$ALTERNATIVE_TAGS"'!' \
-			"$_dir/hooks/post_push"
-	fi
+  # Hooks
+  shift 2
+  echo "$@ ($#)"
+  rm -rf "$_dir/hooks"
+  if [ $# -gt 1 ]; then
+    ALTERNATIVE_TAGS=$(join ',' "$@")
+    mkdir -p "$_dir/hooks"
+    cp -v post_push "$_dir/hooks/"
+    sed -ri \
+      -e 's!%%ALTERNATIVE_TAGS%%!'"$ALTERNATIVE_TAGS"'!' \
+      "$_dir/hooks/post_push"
+  fi
 }
 
 travisEnv=
 for version in "${versions[@]}"; do
-	rcVersion="${version%-rc}"
+  rcVersion="${version%-rc}"
 
-	fullVersion=`vendor/bin/php-versions version "$rcVersion"`
-	basename=`vendor/bin/php-versions download-url "$rcVersion" --format xz`
-	url=`vendor/bin/php-versions download-url "$rcVersion" --format xz --url`
-	ascUrl=`vendor/bin/php-versions download-url "$rcVersion" --format xz --asc --url`
-	sha256=`vendor/bin/php-versions hash "$rcVersion" --format xz --type sha256`
-	md5=`vendor/bin/php-versions hash "$rcVersion" --format xz --type md5`
+  fullVersion=$(vendor/bin/php-versions version "$rcVersion")
+  basename=$(vendor/bin/php-versions download-url "$rcVersion" --format xz)
+  url=$(vendor/bin/php-versions download-url "$rcVersion" --format xz --url)
+  ascUrl=$(vendor/bin/php-versions download-url "$rcVersion" --format xz --asc --url)
+  sha256=$(vendor/bin/php-versions hash "$rcVersion" --format xz --type sha256)
+  md5=$(vendor/bin/php-versions hash "$rcVersion" --format xz --type md5)
 
-	gpgKey=`vendor/bin/php-versions gpg "$rcVersion"`
-	if [ -z "$gpgKey" ]; then
-		gpgKey='""'
-	fi
+  gpgKey=$(vendor/bin/php-versions gpg "$rcVersion")
+  if [ -z "$gpgKey" ]; then
+    gpgKey='""'
+  fi
 
-	# if we don't have a .asc URL, let's see if we can figure one out :)
-	if [ -z "$ascUrl" ] && wget -q --spider "$url.asc"; then
-		ascUrl="$url.asc"
-	fi
+  # if we don't have a .asc URL, let's see if we can figure one out :)
+  if [ -z "$ascUrl" ] && wget -q --spider "$url.asc"; then
+    ascUrl="$url.asc"
+  fi
 
-	# Temporarily disable GPG check due to problems with keyserver response time
-	ascUrl=
+  # Temporarily disable GPG check due to problems with keyserver response time
+  ascUrl=
 
-	dockerfiles=()
+  dockerfiles=()
 
-	{ generated_warning; cat Dockerfile-debian.template; } > "$version/Dockerfile"
+  {
+    generated_warning
+    cat Dockerfile-debian.template
+  } >"$version/Dockerfile"
 
-	versionAliases=(
-		$version
-		${aliases[$version]:-}
-	)
+  versionAliases=(
+    $version
+    ${aliases[$version]:-}
+  )
 
-	variant='cli'
-	variantAliases=( "${versionAliases[@]/%/-$variant}" )
-	variantAliases=( "${variantAliases[@]//latest-/}" )
-	variantAliases+=( "${versionAliases[@]}" )
+  variant='cli'
+  variantAliases=("${versionAliases[@]/%/-$variant}")
+  variantAliases=("${variantAliases[@]//latest-/}")
+  variantAliases+=("${versionAliases[@]}")
 
-	copyFiles "$version" "$version" "${variantAliases[@]}"
-	dockerfiles+=( "$version/Dockerfile" )
+  copyFiles "$version" "$version" "${variantAliases[@]}"
+  dockerfiles+=("$version/Dockerfile")
 
-	if [ -d "$version/alpine" ]; then
-		{ generated_warning; cat Dockerfile-alpine.template; } > "$version/alpine/Dockerfile"
+  if [ -d "$version/alpine" ]; then
+    {
+      generated_warning
+      cat Dockerfile-alpine.template
+    } >"$version/alpine/Dockerfile"
 
-		slash='/'
-		variantAliases=( "${versionAliases[@]/%/-alpine}" )
-		variantAliases=( "${variantAliases[@]//latest-/}" )
+    slash='/'
+    variantAliases=("${versionAliases[@]/%/-alpine}")
+    variantAliases=("${variantAliases[@]//latest-/}")
 
-		copyFiles "$version" "$version/alpine" "${variantAliases[@]}"
-		dockerfiles+=( "$version/alpine/Dockerfile" )
-	fi
+    copyFiles "$version" "$version/alpine" "${variantAliases[@]}"
+    dockerfiles+=("$version/alpine/Dockerfile")
+  fi
 
-	for target in \
-		apache \
-		fpm fpm/alpine \
-		zts zts/alpine \
-	; do
-		[ -d "$version/$target" ] || continue
-		base="$version/Dockerfile"
-		variant="${target%%/*}"
-		if [ "$target" != "$variant" ]; then
-			variantVariant="${target#$variant/}"
-			[ -d "$version/$variantVariant" ] || continue
-			base="$version/$variantVariant/Dockerfile"
-		fi
-		echo "Generating $version/$target/Dockerfile from $base + $variant-Dockerfile-block-*"
-		awk '
+  for target in \
+    apache \
+    fpm fpm/alpine \
+    zts zts/alpine; do
+    [ -d "$version/$target" ] || continue
+    base="$version/Dockerfile"
+    variant="${target%%/*}"
+    if [ "$target" != "$variant" ]; then
+      variantVariant="${target#$variant/}"
+      [ -d "$version/$variantVariant" ] || continue
+      base="$version/$variantVariant/Dockerfile"
+    fi
+    echo "Generating $version/$target/Dockerfile from $base + $variant-Dockerfile-block-*"
+    awk '
 			$1 == "##</autogenerated>##" { ia = 0 }
 			!ia { print }
 			$1 == "##<autogenerated>##" { ia = 1; ab++; ac = 0 }
 			ia { ac++ }
 			ia && ac == 1 { system("cat '$variant'-Dockerfile-block-" ab) }
-		' "$base" > "$version/$target/Dockerfile"
+		' "$base" >"$version/$target/Dockerfile"
 
-		slash='/'
-		variantAliases=( "${versionAliases[@]/%/-${target//$slash/-}}" )
-		variantAliases=( "${variantAliases[@]//latest-/}" )
+    slash='/'
+    variantAliases=("${versionAliases[@]/%/-${target//$slash/-}}")
+    variantAliases=("${variantAliases[@]//latest-/}")
 
-		copyFiles "$version" "$version/$target" "${variantAliases[@]}"
-		dockerfiles+=( "$version/$target/Dockerfile" )
-	done
+    copyFiles "$version" "$version/$target" "${variantAliases[@]}"
+    dockerfiles+=("$version/$target/Dockerfile")
+  done
 
-	(
-		set -x
-		sed -ri \
-			-e 's!%%PHP_VERSION%%!'"$fullVersion"'!' \
-			-e 's!%%GPG_KEYS%%!'"$gpgKey"'!' \
-			-e 's!%%PHP_FILE%%!'"$basename"'!' \
-			-e 's!%%PHP_URL%%!'"$url"'!' \
-			-e 's!%%PHP_ASC_URL%%!'"$ascUrl"'!' \
-			-e 's!%%PHP_SHA256%%!'"$sha256"'!' \
-			-e 's!%%PHP_MD5%%!'"$md5"'!' \
-			"${dockerfiles[@]}"
-	)
+  (
+    set -x
+    sed -ri -e 's!%%PHP_VERSION%%!'"$fullVersion"'!' "${dockerfiles[@]}"
+    sed -ri -e 's!%%GPG_KEYS%%!'"$gpgKey"'!' "${dockerfiles[@]}"
+    sed -ri -e 's!%%PHP_FILE%%!'"$basename"'!' "${dockerfiles[@]}"
+    sed -ri -e 's!%%PHP_URL%%!'"$url"'!' "${dockerfiles[@]}"
+    sed -ri -e 's!%%PHP_ASC_URL%%!'"$ascUrl"'!' "${dockerfiles[@]}"
+    sed -ri -e 's!%%PHP_SHA256%%!'"$sha256"'!' "${dockerfiles[@]}"
+    sed -ri -e 's!%%PHP_MD5%%!'"$md5"'!' "${dockerfiles[@]}"
+  )
 
-	# update entrypoint commands
-	for dockerfile in "${dockerfiles[@]}"; do
-		cmd="$(awk '$1 == "CMD" { $1 = ""; print }' "$dockerfile" | tail -1 | jq --raw-output '.[0]')"
-		entrypoint="$(dirname "$dockerfile")/docker-php-entrypoint"
-		sed -i 's! php ! '"$cmd"' !g' "$entrypoint"
-	done
+  # update entrypoint commands
+  for dockerfile in "${dockerfiles[@]}"; do
+    cmd="$(awk '$1 == "CMD" { $1 = ""; print }' "$dockerfile" | tail -1 | jq --raw-output '.[0]')"
+    entrypoint="$(dirname "$dockerfile")/docker-php-entrypoint"
+    sed -i 's! php ! '"$cmd"' !g' "$entrypoint"
+  done
 
-	newTravisEnv=
-	for dockerfile in "${dockerfiles[@]}"; do
-		dir="${dockerfile%Dockerfile}"
-		dir="${dir%/}"
-		variant="${dir#$version}"
-		variant="${variant#/}"
-		newTravisEnv+='\n  - VERSION='"$version VARIANT=$variant"
-	done
-	travisEnv="$newTravisEnv$travisEnv"
+  newTravisEnv=
+  for dockerfile in "${dockerfiles[@]}"; do
+    dir="${dockerfile%Dockerfile}"
+    dir="${dir%/}"
+    variant="${dir#$version}"
+    variant="${variant#/}"
+    newTravisEnv+='\n  - VERSION='"$version VARIANT=$variant"
+  done
+  travisEnv="$newTravisEnv$travisEnv"
 done
 
 travis="$(awk -v 'RS=\n\n' '$1 == "env:" { $0 = "env:'"$travisEnv"'" } { printf "%s%s", $0, RS }' .travis.yml)"
-echo "$travis" > .travis.yml
+echo "$travis" >.travis.yml

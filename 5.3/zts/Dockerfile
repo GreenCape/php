@@ -9,7 +9,7 @@ FROM debian:jessie
 ENV PHP_VERSION 5.3.29
 ENV PHP_FILE="php-5.3.29.tar.xz"
 ENV PHP_URL="https://secure.php.net/get/php-5.3.29.tar.xz/from/this/mirror" PHP_ASC_URL=""
-ENV PHP_SHA256="" PHP_MD5="dcff9c881fe436708c141cfc56358075"
+ENV PHP_SHA256="8438c2f14ab8f3d6cd2495aa37de7b559e33b610f9ab264f0c61b531bf0c262d" PHP_MD5=""
 
 # persistent / runtime deps
 ENV PHPIZE_DEPS \

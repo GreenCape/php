@@ -6,10 +6,10 @@
 
 FROM debian:jessie
 
-ENV PHP_VERSION 5.6.30
-ENV PHP_FILE="php-5.6.30.tar.xz"
-ENV PHP_URL="https://secure.php.net/get/php-5.6.30.tar.xz/from/this/mirror" PHP_ASC_URL=""
-ENV PHP_SHA256="a363185c786432f75e3c7ff956b49c3369c3f6906a6b10459f8d1ddc22f70805" PHP_MD5="68753955a8964ae49064c6424f81eb3e"
+ENV PHP_VERSION 5.6.40
+ENV PHP_FILE="php-5.6.40.tar.xz"
+ENV PHP_URL="https://secure.php.net/get/php-5.6.40.tar.xz/from/this/mirror" PHP_ASC_URL=""
+ENV PHP_SHA256="1369a51eee3995d7fbd1c5342e5cc917760e276d561595b6052b21ace2656d1c" PHP_MD5=""
 
 # persistent / runtime deps
 ENV PHPIZE_DEPS \
