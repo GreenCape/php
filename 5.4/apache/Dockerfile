@@ -143,7 +143,7 @@ RUN set -xe; \
 		rm -r "$GNUPGHOME"; \
 	fi; \
 	\
-	apt-get purge -y --autoremove $fetchDeps
+	apt-get purge -y $fetchDeps
 
 COPY docker-php-source /usr/local/bin/
 COPY patches/ /usr/src/patches/
